@@ -90,10 +90,8 @@ class ClustersClient(dbclient):
         for x in events:
             event = x['type']
             if event == 'RESTARTING' or event == 'STARTING':
-                print(str(datetime.datetime.utcfromtimestamp(x['timestamp'] / 1000)))
                 runtime = now - datetime.datetime.utcfromtimestamp(x['timestamp'] / 1000)
                 hours_run = runtime.total_seconds() / 3600
-                print(hours_run)
                 return hours_run
         return 0
 
@@ -131,7 +129,7 @@ class ClustersClient(dbclient):
                 co['hours_run'] = hours_run_events
             else:
                 co['hours_run'] = hours_run_cluster
-            if co['hours_run'] > 4.0:
+            if co['hours_run'] > run_time_hours:
                 long_cluster_list.append(co)
         return long_cluster_list
 

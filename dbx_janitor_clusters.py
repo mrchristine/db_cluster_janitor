@@ -80,7 +80,7 @@ def cleanup_clusters(url, token, env_name):
             report['autoterminate'].append(c)
         else:
             auto_terminate_hours = c.get('autotermination_minutes', None) / 60
-            if auto_terminate_hours > 12:
+            if auto_terminate_hours > 6:
                 print("Cluster should have auto-termination enabled to reasonable settings. "
                       "Killing cluster: {0}\t User: {1}".format(c['cluster_name'], c['creator_user_name']))
                 report['autoterminate'].append(c)
