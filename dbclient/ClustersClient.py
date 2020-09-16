@@ -23,14 +23,16 @@ class ClustersClient(dbclient):
 
     def get_cluster_list(self, alive=True):
         """ Returns an array of json objects for the running clusters. Grab the cluster_name or cluster_id """
-        cl = self.get("/clusters/list", printJson=False)
-        if alive:
-            running = filter(lambda x: x['state'] == "RUNNING", cl['clusters'])
-            for x in running:
-                print(x['cluster_name'] + ' : ' + x['cluster_id'])
-            return running
-        else:
-            return cl['clusters']
+        cluster_list = self.get("/clusters/list", printJson=False).get('clusters', None)
+        if cluster_list:
+            if alive:
+                running = list(filter(lambda x: x['state'] == "RUNNING", cluster_list))
+                for x in running:
+                    print(x['cluster_name'] + ' : ' + x['cluster_id'])
+                return running
+            else:
+                return cluster_list
+        return []
 
     @staticmethod
     def reset_min_pool_args(pool_info):
@@ -84,54 +86,60 @@ class ClustersClient(dbclient):
         return False
 
     def get_runtime_from_events(self, cid):
+        print(f"Getting events for {cid}")
         resp = self.post('/clusters/events', {'cluster_id': cid})
         events = resp.get('events', None)
-        now = datetime.datetime.utcnow()
-        for x in events:
-            event = x['type']
-            if event == 'RESTARTING' or event == 'STARTING':
-                runtime = now - datetime.datetime.utcfromtimestamp(x['timestamp'] / 1000)
-                hours_run = runtime.total_seconds() / 3600
-                return hours_run
+        if events:
+            now = datetime.datetime.utcnow()
+            for x in events:
+                event = x['type']
+                if event == 'RESTARTING' or event == 'STARTING':
+                    runtime = now - datetime.datetime.utcfromtimestamp(x['timestamp'] / 1000)
+                    hours_run = runtime.total_seconds() / 3600
+                    return hours_run
+        else:
+            raise ValueError("No longer an admin ...")
         return 0
 
     def get_long_clusters(self, run_time_hours=0):
         # get current time
         now = datetime.datetime.utcnow()
-        cluster_list = self.get('/clusters/list')['clusters']
+        cluster_list = self.get('/clusters/list').get('clusters', None)
 
-        # grab the running clusters into a list
-        running_cl_list = filter(lambda x: x['state'] == 'RUNNING', cluster_list)
-        # kill list array
-        long_cluster_list = []
-        for x in running_cl_list:
-            co = dict()
-            co['start_time'] = str(datetime.datetime.utcfromtimestamp(x['start_time'] / 1000))
-            co['cluster_name'] = x['cluster_name']
-            co['creator_user_name'] = x['creator_user_name']
-            co['cluster_id'] = x['cluster_id']
-            co['autotermination_minutes'] = x['autotermination_minutes']
-            if x.get('autoscale', None):
-                cluster_size = x.get('autoscale')
-            else:
-                cluster_size = x.get('num_workers')
-            co['cluster_details'] = {'worker_node_type': x['node_type_id'],
-                                     'driver_node_type': x['driver_node_type_id'],
-                                     'cluster_size': cluster_size}
-            co['is_serverless'] = self.is_serverless_cluster(x)
-            co['keep_alive'] = self.has_keep_alive_tags(x)
-            # get the current time of cluster run times
-            rt = now - datetime.datetime.utcfromtimestamp(x['start_time'] / 1000)
-            hours_run_cluster = rt.total_seconds() / 3600
-            hours_run_events = self.get_runtime_from_events(x['cluster_id'])
-            # need to check hours run and stuff
-            if hours_run_cluster > hours_run_events > 0:
-                co['hours_run'] = hours_run_events
-            else:
-                co['hours_run'] = hours_run_cluster
-            if co['hours_run'] > run_time_hours:
-                long_cluster_list.append(co)
-        return long_cluster_list
+        if cluster_list:
+            # grab the running clusters into a list
+            running_cl_list = filter(lambda x: x['state'] == 'RUNNING', cluster_list)
+            # kill list array
+            long_cluster_list = []
+            for x in running_cl_list:
+                co = dict()
+                co['start_time'] = str(datetime.datetime.utcfromtimestamp(x['start_time'] / 1000))
+                co['cluster_name'] = x['cluster_name']
+                co['creator_user_name'] = x['creator_user_name']
+                co['cluster_id'] = x['cluster_id']
+                co['autotermination_minutes'] = x['autotermination_minutes']
+                if x.get('autoscale', None):
+                    cluster_size = x.get('autoscale')
+                else:
+                    cluster_size = x.get('num_workers')
+                co['cluster_details'] = {'worker_node_type': x['node_type_id'],
+                                         'driver_node_type': x['driver_node_type_id'],
+                                         'cluster_size': cluster_size}
+                co['is_serverless'] = self.is_serverless_cluster(x)
+                co['keep_alive'] = self.has_keep_alive_tags(x)
+                # get the current time of cluster run times
+                rt = now - datetime.datetime.utcfromtimestamp(x['start_time'] / 1000)
+                hours_run_cluster = rt.total_seconds() / 3600
+                hours_run_events = self.get_runtime_from_events(x['cluster_id'])
+                # need to check hours run and stuff
+                if hours_run_cluster > hours_run_events > 0:
+                    co['hours_run'] = hours_run_events
+                else:
+                    co['hours_run'] = hours_run_cluster
+                if co['hours_run'] > run_time_hours:
+                    long_cluster_list.append(co)
+            return long_cluster_list
+        return []
 
     def kill_cluster(self, cid=None):
         """ Kill the cluster id of the given cluster """
