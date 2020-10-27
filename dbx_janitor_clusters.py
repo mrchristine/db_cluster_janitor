@@ -67,11 +67,8 @@ def cleanup_clusters(url, token, env_name):
 
         # kill if a stream is running on the cluster
         elif c_client.is_stream_running(c['cluster_id']):
-            if (c['cluster_name'] == 'ship_stream') and (c['creator_user_name'] == 'john.lynch@databricks.com'):
-                report['whitelist'].append(c)
-            else:
-                print("Killing streaming cluster: {0}\t User: {1}".format(c['cluster_name'], c['creator_user_name']))
-                report['streaming'].append(c)
+            print("Killing streaming cluster: {0}\t User: {1}".format(c['cluster_name'], c['creator_user_name']))
+            report['streaming'].append(c)
 
         # kill long running cluster that should have a shorter auto-termination period
         elif c.get('autotermination_minutes', None) == 0:

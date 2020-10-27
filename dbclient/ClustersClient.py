@@ -176,10 +176,10 @@ class ClustersClient(dbclient):
         # Get an execution context id. You only need 1 to run multiple commands. This is a remote shell into the environment
         print("CID: {0}".format(cid))
         ec = self.post('/contexts/create', {"language": "scala", "clusterId": cid}, version="1.2")
-        if ec.get('id', None) is None:
-            return False
         # Grab the execution context ID
-        ec_id = ec['id']
+        ec_id = ec.get('id', None)
+        if ec_id is None:
+            return False
         # This launches spark commands and print the results. We can pull out the text results from the API
         command_payload = {'language': 'scala',
                            'contextId': ec_id,
@@ -189,7 +189,10 @@ class ClustersClient(dbclient):
         command = self.post('/commands/execute', \
                             command_payload, \
                             version="1.2")
-        com_id = command['id']
+        com_id = command.get('id', None)
+        if com_id is None:
+            print(command)
+            raise ValueError('Unable to run command on cluster')
         result_payload = {'clusterId': cid, 'contextId': ec_id, 'commandId': com_id}
         resp = self.get('/commands/status', result_payload, version="1.2")
         is_running = resp['status']
