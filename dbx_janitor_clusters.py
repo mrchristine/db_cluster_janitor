@@ -16,7 +16,7 @@ def cleanup_clusters(url, token, env_name):
     # cluster object used to document different types of cluster uses
     c_types = ['env_name', 'excluded', 'serverless', 'passthrough',
                'streaming', 'autoterminate', 'init', 'model_endpoints',
-               'default', 'whitelist', 'pools']
+               'default', 'whitelist', 'pools', 'pipeline_jobs']
 
     report = dict([(key, []) for key in c_types])
     report['env_name'] = (env_name, url)
@@ -24,6 +24,7 @@ def cleanup_clusters(url, token, env_name):
 
     print("Starting cleanup cluster process. Fetching cleanup client ....")
     c_client = ClustersClient(token, url)
+    j_client = JobsClient(token, url)
 
     # get the clusters that have run more than 4 hours
     print("Get long running clusters ....")
@@ -90,6 +91,11 @@ def cleanup_clusters(url, token, env_name):
                     print("Cluster has auto-termination enabled. Keeping alive: {0}\t User: {1}".format(
                         c['cluster_name'], c['creator_user_name']))
                     report['default'].append(c)
+
+    print("# Stop Delta Pipelines\n")
+    stopped_pipelines = j_client.stop_pipelines()
+    print("Total stopped pipelines: {0}".format(len(stopped_pipelines)))
+    report['pipeline_jobs'] = stopped_pipelines
 
     if kill_clusters:
         for k, v in report.items():

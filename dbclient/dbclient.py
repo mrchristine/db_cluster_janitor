@@ -58,8 +58,8 @@ class dbclient:
                                         json=json_params)
             results = raw_results.json()
         else:
-            print("Must have a payload in json_args param.")
-            return {}
+            raw_results = requests.post(self._url + '/api/{0}'.format(ver) + endpoint, headers=self._token)
+            results = raw_results.json()
         if printJson:
             print(json.dumps(results, indent=4, sort_keys=True))
         # if results are empty, let's return the return status

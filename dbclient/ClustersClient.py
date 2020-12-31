@@ -8,7 +8,7 @@ class ClustersClient(dbclient):
         model_resp = self.get('/preview/mlflow/endpoints/list')
         if model_resp['http_status_code'] != 200:
             return []
-        return model_resp.get('endpoints', None)
+        return model_resp.get('endpoints', [])
 
     def terminate_all_model_endpoints(self, model_list=None):
         responses = []
