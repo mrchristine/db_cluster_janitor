@@ -28,7 +28,7 @@ def cleanup_clusters(url, token, env_name):
 
     # get the clusters that have run more than 4 hours
     print("Get long running clusters ....")
-    long_cluster_list = c_client.get_long_clusters(4)
+    long_cluster_list = c_client.get_long_clusters(7)
 
     ## cleanup global init scripts
     print("Get init scripts ....")
@@ -106,7 +106,12 @@ def cleanup_clusters(url, token, env_name):
             else:
                 # terminate these clusters that fall outside the above categories
                 for cluster in v:
-                    c_client.kill_cluster(cluster['cluster_id'])
+                    cid = cluster.get('cluster_id', None)
+                    if cid:
+                        c_client.kill_cluster(cluster['cluster_id'])
+                    else:
+                        print("Missing cluster id: ")
+                        print(cluster)
 
     print("# Global init scripts\n")
     for path in init_scripts:

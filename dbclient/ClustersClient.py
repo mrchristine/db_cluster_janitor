@@ -195,12 +195,12 @@ class ClustersClient(dbclient):
             raise ValueError('Unable to run command on cluster')
         result_payload = {'clusterId': cid, 'contextId': ec_id, 'commandId': com_id}
         resp = self.get('/commands/status', result_payload, version="1.2")
-        is_running = resp['status']
+        is_running = resp.get('status', '')
 
         # loop through the status api to check for the 'running' state call and sleep 1 second
         while (is_running == "Running"):
             resp = self.get('/commands/status', result_payload, version="1.2")
-            is_running = resp['status']
+            is_running = resp.get('status', '')
             time.sleep(1)
 
         # check the final result to see if a streaming job is running
