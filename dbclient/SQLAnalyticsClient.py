@@ -36,12 +36,12 @@ class SQLAnalyticsClient(dbclient):
                     try:
                         expiry_dt = datetime.strptime(date_str, '%m-%d-%Y').date()
                     except:
-                        return False
+                        return "Expired"  #not formatted right. Expire.
                     if(expiry_dt >= date.today()):
-                        return True #not expired
+                        return "Stop" #not expired
                     else:
-                        return False #expired
-        return False        
+                        return "Expired" #expired
+        return "False"        
     
     def get_sqlendpoints_list(self, alive=True):
         """ Returns an array of json objects for the endpoints. Grab the cluster_name or cluster_id """
@@ -76,9 +76,15 @@ class SQLAnalyticsClient(dbclient):
   
                 keep1 = SQLAnalyticsClient.has_keep_alive_tags(cluster)
                 keep2 = SQLAnalyticsClient.has_keep_until_tags(cluster)
-                co['keep_alive']=keep1
-                co['keep_until']=keep2
-                if keep1==False and keep2==False:
+                co['keep_alive']=keep1 #False means no keepalive flag so stop
+                co['keep_until']=keep2 #Expire or Stop 
+                if (keep1==True and keep2=="Expired" ): #keepalive and keepuntil expired. Expiry takes precedence
+                    terminate_cluster_list.append(co)
+                elif keep1==True and keep2=="Stop": #keepalive and keepuntil Stop. keepalive takes precedence
+                    pass 
+                elif keep1==True and keep2=="False": #keepalive and no keepuntil.
+                    pass
+                else: #no keepalive. keepuntil rules kick in.
                     terminate_cluster_list.append(co)
 
             return terminate_cluster_list

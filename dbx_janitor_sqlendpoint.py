@@ -16,12 +16,8 @@ def cleanup_sqlendpoints(url, token, env_name):
     # get the list of sql endpoints
     terminate_list = sqlClient.get_terminate_sqlendpoints()
     for endpoint in terminate_list:
-        if endpoint['keep_alive']==True:
-            pass
-            #sqlClient.stop_cluster(endpoint['cluster_id'])
-        elif endpoint['keep_until']==True: 
-            pass
-            #sqlClient.stop_cluster(endpoint['cluster_id'])
+        if endpoint['keep_until']=="Expired":
+            sqlClient.kill_cluster(endpoint['cluster_id'])
         else:
             sqlClient.stop_cluster(endpoint['cluster_id'])
         
