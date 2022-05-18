@@ -77,6 +77,12 @@ class ClustersClient(dbclient):
             return False
 
     @staticmethod
+    def is_single_user_cluster(cinfo):
+        if cinfo.get('data_security_mode', '') == 'SINGLE_USER':
+            return True
+        return False
+
+    @staticmethod
     def is_serverless_cluster(cinfo):
         custom_tags = cinfo.get('custom_tags', None)
         if custom_tags:
@@ -127,6 +133,7 @@ class ClustersClient(dbclient):
                                          'cluster_size': cluster_size}
                 co['is_serverless'] = self.is_serverless_cluster(x)
                 co['keep_alive'] = self.has_keep_alive_tags(x)
+                co['is_single_user'] = self.is_single_user_cluster(x)
                 # get the current time of cluster run times
                 rt = now - datetime.datetime.utcfromtimestamp(x['start_time'] / 1000)
                 hours_run_cluster = rt.total_seconds() / 3600

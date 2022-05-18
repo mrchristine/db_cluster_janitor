@@ -59,23 +59,27 @@ def cleanup_clusters(url, token, env_name):
         elif c.get('is_serverless', None):
             print("Killing serverless cluster: {0}\t User: {1}".format(c['cluster_name'], c['creator_user_name']))
             report['serverless'].append(c)
+            continue
 
-        # kill if passthrough cluster / aka single user cluster
-        elif c_client.is_passthrough_cluster(c['cluster_id']):
+        # kill if passthrough cluster / or single user cluster
+        elif c_client.is_passthrough_cluster(c['cluster_id']) or c.get('is_single_user', ''):
             print("Killing single-user / passthrough cluster: {0}\t User: {1}".format(c['cluster_name'],
                                                                                       c['creator_user_name']))
             report['passthrough'].append(c)
+            continue
 
         # kill if a stream is running on the cluster
         elif c_client.is_stream_running(c['cluster_id']):
             print("Killing streaming cluster: {0}\t User: {1}".format(c['cluster_name'], c['creator_user_name']))
             report['streaming'].append(c)
+            continue
 
         # kill long running cluster that should have a shorter auto-termination period
         elif c.get('autotermination_minutes', None) == 0:
             print("Clusters should always have auto-terminated enabled. Killing cluster now! {0}\t User: {1}".format(
                 c['cluster_name'], c['creator_user_name']))
             report['autoterminate'].append(c)
+            continue
         else:
             auto_terminate_hours = c.get('autotermination_minutes', None) / 60
             if auto_terminate_hours > 6:
