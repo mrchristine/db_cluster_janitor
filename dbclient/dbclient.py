@@ -1,4 +1,4 @@
-import json, requests, datetime
+import json, requests, datetime, time
 
 global pprint_j
 
@@ -41,13 +41,37 @@ class dbclient:
         if json_params:
             raw_results = requests.get(self._url + '/api/{0}'.format(ver) + endpoint, headers=self._token,
                                        params=json_params)
-            results = raw_results.json()
+            if raw_results.status_code == 429:
+                results = {'http_status_code': 429}
+            else:
+                results = raw_results.json()
+                results['http_status_code'] = raw_results.status_code
         else:
             raw_results = requests.get(self._url + '/api/{0}'.format(ver) + endpoint, headers=self._token)
-            results = raw_results.json()
+            if raw_results.status_code == 429:
+                results = {'http_status_code': 429}
+            else:
+                results = raw_results.json()
+                results['http_status_code'] = raw_results.status_code
         if printJson:
             print(json.dumps(results, indent=4, sort_keys=True))
-        results['http_status_code'] = raw_results.status_code
+        while results['http_status_code'] == 429:
+            time.sleep(0.5)
+            if json_params:
+                raw_results = requests.get(self._url + '/api/{0}'.format(ver) + endpoint, headers=self._token,
+                                           params=json_params)
+                if raw_results.status_code == 429:
+                    results = {'http_status_code': 429}
+                else:
+                    results = raw_results.json()
+                    results['http_status_code'] = raw_results.status_code
+            else:
+                raw_results = requests.get(self._url + '/api/{0}'.format(ver) + endpoint, headers=self._token)
+                if raw_results.status_code == 429:
+                    results = {'http_status_code': 429}
+                else:
+                    results = raw_results.json()
+                    results['http_status_code'] = raw_results.status_code
         return results
 
     def post(self, endpoint, json_params={}, printJson=False, version='2.0'):
@@ -58,8 +82,8 @@ class dbclient:
                                         json=json_params)
             results = raw_results.json()
         else:
-            raw_results = requests.post(self._url + '/api/{0}'.format(ver) + endpoint, headers=self._token)
-            results = raw_results.json()
+            print("Must have a payload in json_args param.")
+            return {}
         if printJson:
             print(json.dumps(results, indent=4, sort_keys=True))
         # if results are empty, let's return the return status
@@ -68,3 +92,18 @@ class dbclient:
             return results
         else:
             return {'http_status_code': raw_results.status_code}
+
+    def delete(self, endpoint, json_params={}, printJson=False, version='2.0'):
+        if version:
+            ver = version
+        if json_params:
+            raw_results = requests.delete(self._url + '/api/{0}'.format(ver) + endpoint, headers=self._token,
+                                       params=json_params)
+            results = raw_results.json()
+        else:
+            raw_results = requests.delete(self._url + '/api/{0}'.format(ver) + endpoint, headers=self._token)
+            results = raw_results.json()
+        if printJson:
+            print(json.dumps(results, indent=4, sort_keys=True))
+        results['http_status_code'] = raw_results.status_code
+        return results

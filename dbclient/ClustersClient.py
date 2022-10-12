@@ -5,17 +5,25 @@ from dbclient import *
 class ClustersClient(dbclient):
 
     def get_model_endpoints(self):
+        # v1 model endpoints
         model_resp = self.get('/preview/mlflow/endpoints/list')
         if model_resp['http_status_code'] != 200:
             return []
         return model_resp.get('endpoints', [])
+    
+    def get_model_v2_endpoints(self):
+        model_resp = self.get('/mlflow/endpoints-v2/list')
+        if model_resp['http_status_code'] != 200:
+            return []
+        return model_resp.get('endpoint_statuses', [])
 
     def terminate_all_model_endpoints(self, model_list=None):
         responses = []
         for model in model_list:
-            terminate_resp = self.post("/preview/mlflow/endpoints/disable",
-                                       {"registered_model_name": model['registered_model_name']})
-            responses.append(terminate_resp)
+            if not self.has_keep_v1_endpoint_alive_tags(model):
+                terminate_resp = self.post("/preview/mlflow/endpoints/disable",
+                                           {"registered_model_name": model['registered_model_name']})
+                responses.append(terminate_resp)
         return responses
 
     def get_spark_versions(self):
@@ -68,18 +76,41 @@ class ClustersClient(dbclient):
 
     @staticmethod
     def has_keep_alive_tags(cinfo):
-        keep_alive_tags = ["keepalive", "keep_alive"]
         if cinfo.get('custom_tags', None):
             tag_keys = [tag.lower() for tag in cinfo['custom_tags'].keys()]
             if ("keepalive" in tag_keys) or ("keep_alive" in tag_keys):
                 return True
         else:
             return False
+        
+    @staticmethod
+    def has_keep_v1_endpoint_alive_tags(minfo):
+        desired_cluster_configs = minfo.get('desired_cluster_config', None)
+        if desired_cluster_configs:
+            tags = desired_cluster_configs.get('tags', None)
+            if tags:
+                tag_keys = [tag["key"].lower() for tag in tags]
+                if ("keepalive" in tag_keys) or ("keep_alive" in tag_keys):
+                    return True
+                else:
+                    return False
 
     @staticmethod
     def is_single_user_cluster(cinfo):
-        if cinfo.get('data_security_mode', '') == 'SINGLE_USER':
+        dsm = cinfo.get('data_security_mode', '')
+        if dsm == 'SINGLE_USER':
             return True
+        elif dsm == 'LEGACY_TABLE_ACL':
+            return True
+        elif dsm == 'USER_ISOLATION':
+            return True
+        elif dsm == 'LEGACY_SINGLE_USER_STANDARD':
+            return True
+        custom_tags = cinfo.get('custom_tags', None)
+        if custom_tags:
+            type_tag = custom_tags.get('ResourceClass', None)
+            if type_tag == 'SingleNode':
+                return True
         return False
 
     @staticmethod
@@ -169,7 +200,7 @@ class ClustersClient(dbclient):
 
     def is_passthrough_cluster(self, cid=None):
         """ check if this is a single user cluster only """
-        print("CID: {0}".format(cid))
+        print("Passthrough check CID: {0}".format(cid))
         c_json = self.get("/clusters/get?cluster_id={0}".format(cid))
         c_config = c_json.get('spark_conf', None)
         if c_config:
@@ -181,7 +212,7 @@ class ClustersClient(dbclient):
     def is_stream_running(self, cid=None):
         """ check if a streaming job is running on the cluster """
         # Get an execution context id. You only need 1 to run multiple commands. This is a remote shell into the environment
-        print("CID: {0}".format(cid))
+        print("Streaming job check CID: {0}".format(cid))
         ec = self.post('/contexts/create', {"language": "scala", "clusterId": cid}, version="1.2")
         # Grab the execution context ID
         ec_id = ec.get('id', None)
